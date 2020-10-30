@@ -1,0 +1,41 @@
+# 应用模块配置
+[web]
+    # web 服务绑定地址
+    binding = "127.0.0.1"
+    # web 服务端口
+    port = 4455
+
+# object模块配置
+[object]
+    # object url 存储方式，默认为 redis
+    storage = "redis"
+
+    [object.redis]
+    # redis 地址
+    addr = ""
+    # redis 用户名
+    username = ""
+    # redis 密码
+    password = ""
+    # redis 连接数
+    pools = 5
+
+
+# 爬虫客户端配置
+[client]
+    # 是否加载图片
+    skip_image = true
+    # 并发连接数
+    connection = 10
+
+# 代理模块配置
+[proxy]
+    # 代理商名称, 支持的代理商业
+    #   - 极光爬虫代理：http://h.jiguangdaili.com/
+    # 默认为极光代理 jg
+    agents = ["jg"]
+
+    # 最大ip容量
+    max_size = 10
+
+    [proxy.jg]
