@@ -1,37 +1,21 @@
 package net
 
 import (
-	"bytes"
-	"errors"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"mime/multipart"
 	"net/http"
-	"net/url"
-	"os"
+	urlpkg "net/url"
 	"strings"
 	"time"
 )
 
-var (
-	// ErrPostData http request body 数据错误
-	ErrPostData = errors.New("bad body data")
-	// ErrBadFile 文件数据错误
-	ErrBadFile = errors.New("bad file data")
-)
-
-type ContentType string
-
 const (
-	Json     ContentType = "application/json"
-	Form     ContentType = "application/x-www-form-urlencoded"
-	FormData ContentType = "multipart/form-data"
+	JSON = "application/json"
+	FORM = "application/x-www-form-urlencoded"
+	MUL  = "multipart/form-data"
 )
-
-func (c ContentType) String() string {
-	return string(c)
-}
 
 // HTTPClient http 客户端，保存 http 请求所需的参数和数据
 type HTTPClient struct {
@@ -63,7 +47,7 @@ type HTTPClient struct {
 func Builder() *HTTPClient {
 	header := map[string]string{}
 	header["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36"
-	header["Content-Type"] = Json.String()
+	header["Content-Type"] = JSON
 	header["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
 	header["Accept-Language"] = "en;q=0.9"
 
@@ -100,8 +84,8 @@ func (c *HTTPClient) SetTimeout(timeout time.Duration) *HTTPClient {
 	return c
 }
 
-func (c *HTTPClient) SetContentType(ct ContentType) *HTTPClient {
-	c.header["Content-Type"] = ct.String()
+func (c *HTTPClient) SetContentType(ct string) *HTTPClient {
+	c.header["Content-Type"] = ct
 	return c
 }
 
@@ -111,7 +95,7 @@ func (c *HTTPClient) SetContentType(ct ContentType) *HTTPClient {
 //	params: url 参数
 //	data: http request body
 //	files: 待上传的文件
-func (c *HTTPClient) Do(method, path string, data, files map[string]string) ([]byte, error) {
+func (c *HTTPClient) Do(ctx context.Context, method, url string, body io.Reader) ([]byte, error) {
 
 	hc := http.Client{}
 
@@ -119,14 +103,14 @@ func (c *HTTPClient) Do(method, path string, data, files map[string]string) ([]b
 	if c.params != nil {
 		query := []string{}
 		for k, v := range c.params {
-			query = append(query, k+"="+url.PathEscape(v))
+			query = append(query, k+"="+urlpkg.PathEscape(v))
 		}
-		path = path + "?" + strings.Join(query, "&")
+		url = url + "?" + strings.Join(query, "&")
 	}
 
-	req := &http.Request{
-		Method: method,
-		URL:    &url.URL{Path: path},
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("")
 	}
 
 	// 设置请求头
@@ -148,47 +132,6 @@ func (c *HTTPClient) Do(method, path string, data, files map[string]string) ([]b
 		}
 	}
 
-	// data 不为 nil 时，设置 http request Body
-	if data != nil {
-		bodyBuf := &bytes.Buffer{}
-		bw := multipart.NewWriter(bodyBuf)
-
-		for k, v := range data {
-			_ = bw.WriteField(k, v)
-		}
-
-		if files != nil {
-			for f, p := range files {
-				fw, err := bw.CreateFormFile(f, f)
-				if err != nil {
-					return nil, fmt.Errorf("%w: %v", ErrPostData, err)
-				}
-
-				//打开文件句柄操作
-				file, err := os.Open(p)
-				if err != nil {
-					return nil, fmt.Errorf("%w: %v", ErrBadFile, err)
-				}
-
-				_, err = io.Copy(fw, file)
-				if err != nil {
-					return nil, fmt.Errorf("%w: %v", ErrBadFile, err)
-				}
-				_ = file.Close()
-			}
-		}
-
-		err := bw.Close()
-		if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrPostData, err)
-		}
-
-		c.header["Content-Type"] = bw.FormDataContentType()
-
-		// io.Read => io.ReadCloser
-		req.Body = ioutil.NopCloser(bodyBuf)
-	}
-
 	// 开始请求
 	resp, err := hc.Do(req)
 	if err != nil {
@@ -199,42 +142,26 @@ func (c *HTTPClient) Do(method, path string, data, files map[string]string) ([]b
 }
 
 // Get 发起一次 GET 请求
-func (c *HTTPClient) Get(url string) ([]byte, error) {
-	return c.Do("GET", url, nil, nil)
-}
-
-// PostFile 上传文件
-//	path: 请求 url
-//	data: http request body
-//	files: 待上传的文件
-func (c *HTTPClient) PostFile(url string, data, files map[string]string) ([]byte, error) {
-	return c.Do("POST", url, data, files)
+func (c *HTTPClient) Get(ctx context.Context, url string) ([]byte, error) {
+	return c.Do(ctx, "GET", url, nil)
 }
 
 // Post 发起一次 POST 请求
-//	path: 请求 url
-//	data: http request body
-func (c *HTTPClient) Post(url string, data map[string]string) ([]byte, error) {
-	return c.Do("POST", url, data, nil)
+func (c *HTTPClient) Post(ctx context.Context, url string, body io.Reader) ([]byte, error) {
+	return c.Do(ctx, "POST", url, body)
 }
 
 // Patch 发起一次 PATCH 请求
-//	path: 请求 url
-//	data: http request body
-func (c *HTTPClient) Patch(url string, data map[string]string) ([]byte, error) {
-	return c.Do("PATCH", url, data, nil)
+func (c *HTTPClient) Patch(ctx context.Context, url string, body io.Reader) ([]byte, error) {
+	return c.Do(ctx, "PATCH", url, body)
 }
 
 // Put 发起一次 PUT 请求
-//	path: 请求 url
-//	data: http request body
-func (c *HTTPClient) Put(url string, data map[string]string) ([]byte, error) {
-	return c.Do("PUT", url, data, nil)
+func (c *HTTPClient) Put(ctx context.Context, url string, body io.Reader) ([]byte, error) {
+	return c.Do(ctx, "PUT", url, body)
 }
 
 // Delete 发起一次 DELETE 请求
-//	path: 请求 url
-//	data: http request body
-func (c *HTTPClient) DELETE(url string, data map[string]string) ([]byte, error) {
-	return c.Do("DELETE", url, data, nil)
+func (c *HTTPClient) DELETE(ctx context.Context, url string, body io.Reader) ([]byte, error) {
+	return c.Do(ctx, "DELETE", url, body)
 }
