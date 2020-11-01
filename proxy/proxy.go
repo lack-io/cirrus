@@ -99,20 +99,3 @@ func (e *Endpoint) DeepCopy() *Endpoint {
 	*out = *e
 	return out
 }
-
-//type Endpoints []*Endpoint
-//
-//func (p Endpoints) Len() int { return len(p) }
-//func (p Endpoints) Less(i, j int) bool {
-//	if p[i].Num != p[j].Num {
-//		return p[i].Num < p[j].Num
-//	}
-//	t1, _ := time.Parse("2006-01-02 15:04:05", p[i].ExpireTime)
-//	t2, _ := time.Parse("2006-01-02 15:04:05", p[j].ExpireTime)
-//	if !t1.Equal(t2) {
-//		return t1.Before(t2)
-//	}
-//
-//	return p[i].Port < p[j].Port
-//}
-//func (p Endpoints) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
