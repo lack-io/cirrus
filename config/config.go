@@ -95,18 +95,18 @@ type Proxy struct {
 	// IP代理商
 	Agents []Agent `toml:"agents"`
 
-	MaxSize int `toml:"max_size"`
-
 	// 极光代理配置，Agents 包含 JG 时有效
 	JG *ProxyJG `toml:"jg"`
 }
 
 // jg 代理配置
 type ProxyJG struct {
-}
+	// JG 账号的 neek 信息
+	Neek string `toml:"neek"`
 
-// 代理IP池配置
-type ProxyPool struct {
-	// IP 池的容量
-	Size int `toml:"size"`
+	// JG 账号的 代理接口 appkey 信息
+	APIAppKey string `toml:"api_appkey"`
+
+	// JG 余额接口 appkey 信息
+	BalanceAppKey string `toml:"balance_appkey"`
 }

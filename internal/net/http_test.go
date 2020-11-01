@@ -48,7 +48,7 @@ func TestHTTPClient_Post(t *testing.T) {
 	c := newClient()
 	c.SetContentType(JSON)
 	c.SetToken("token")
-	c.SetParams(map[string]string{"a": "1", "b": "2"})
+	c.AddParams(map[string]string{"a": "1", "b": "2"})
 	data, err := c.Post(context.Background(), "http://127.0.0.1:30000", strings.NewReader(`{"name":"xingyys"}`))
 	if err != nil {
 		t.Fatal(err)

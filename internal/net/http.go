@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -51,7 +50,7 @@ func Builder() *HTTPClient {
 	header["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
 	header["Accept-Language"] = "en;q=0.9"
 
-	return &HTTPClient{header: header}
+	return &HTTPClient{header: header, params: map[string]string{}}
 }
 
 func (c *HTTPClient) SetHeader(key, value string) *HTTPClient {
@@ -59,8 +58,10 @@ func (c *HTTPClient) SetHeader(key, value string) *HTTPClient {
 	return c
 }
 
-func (c *HTTPClient) SetParams(params map[string]string) *HTTPClient {
-	c.params = params
+func (c *HTTPClient) AddParams(params map[string]string) *HTTPClient {
+	for k, v := range params {
+		c.params[k] = v
+	}
 	return c
 }
 
@@ -110,7 +111,7 @@ func (c *HTTPClient) Do(ctx context.Context, method, url string, body io.Reader)
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return nil, fmt.Errorf("")
+		return nil, err
 	}
 
 	// 设置请求头

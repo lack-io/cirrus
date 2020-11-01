@@ -35,7 +35,10 @@
     # 默认为极光代理 jg
     agents = ["jg"]
 
-    # 最大ip容量
-    max_size = 10
-
     [proxy.jg]
+    # 用户ID
+    neek = ""
+    # 代理接口的 appkey
+    api_appkey = ""
+    # 余额查询接口的 appkey
+    balance_appkey = ""
