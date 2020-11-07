@@ -13,6 +13,8 @@ var (
 	ErrNonEndpoint = errors.New("no endpoint available")
 	// ErrInsufficient 代理的余额不足
 	ErrInsufficient = errors.New("insufficient balance")
+	// ErrPackageExpired 套餐过期
+	ErrPackageExpired = errors.New("package expired")
 	// ErrOutException 请求结果异常
 	ErrResultException = errors.New("result exception")
 )
