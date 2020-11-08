@@ -32,6 +32,8 @@
 
 # 爬虫客户端配置
 [client]
+    # 是否显示 chrome
+    headless = true
     # 是否加载图片
     skip_image = true
     # 并发连接数

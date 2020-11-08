@@ -8,7 +8,7 @@ import (
 
 var (
 	once = &sync.Once{}
-	conf = &config{}
+	conf = &Config{}
 )
 
 type Kind string
@@ -18,7 +18,7 @@ const (
 )
 
 // Get 获取全局 config
-func Get() *config {
+func Get() *Config {
 	return conf
 }
 
@@ -32,7 +32,7 @@ func Init(path string) error {
 	return err
 }
 
-type config struct {
+type Config struct {
 	Web *Web `toml:"web"`
 
 	Storage *Storage `toml:"object"`
@@ -97,6 +97,9 @@ type DBSqlite struct {
 
 // Client 模块配置
 type Client struct {
+	// Headless 是否隐藏 chrome
+	Headless bool `toml:"headless"`
+
 	// 忽略图片加载
 	SkipImage bool `toml:"skip_image"`
 

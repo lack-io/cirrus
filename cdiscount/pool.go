@@ -41,12 +41,12 @@ type Pool struct {
 func NewPool(ctx context.Context, opts *config.Proxy) (*Pool, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	p := &Pool{
-		ctx:       ctx,
-		cancel:    cancel,
-		opts:      opts,
-		endpoints: sll.New(),
-		elock:     &sync.RWMutex{},
-		expiredCh: make(chan struct{}, 1),
+		ctx:        ctx,
+		cancel:     cancel,
+		opts:       opts,
+		endpoints:  sll.New(),
+		elock:      &sync.RWMutex{},
+		expiredCh:  make(chan struct{}, 1),
 		proxyErrCh: make(chan error, 1),
 	}
 
@@ -89,7 +89,6 @@ func (p *Pool) GetEndpoint(ctx context.Context) (*proxy.Endpoint, error) {
 	if size == 0 {
 		return nil, fmt.Errorf("%w: pool is empty", proxy.ErrNonEndpoint)
 	}
-
 
 	var endpoint *proxy.Endpoint
 	for {
@@ -142,6 +141,18 @@ func (p *Pool) process() {
 			}
 		}
 	}
+}
+
+func (p *Pool) Endpoints() ([]*proxy.Endpoint, error) {
+	p.elock.RLock()
+	defer p.elock.RUnlock()
+
+	endpoints := make([]*proxy.Endpoint, 0)
+	values := p.endpoints.Values()
+	for _, item := range values {
+		endpoints = append(endpoints, item.(*proxy.Endpoint))
+	}
+	return endpoints, nil
 }
 
 func (p *Pool) Close() {

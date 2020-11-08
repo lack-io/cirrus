@@ -3,6 +3,7 @@ package cdiscount
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -17,24 +18,30 @@ var (
 	ErrDBRead        = errors.New("read from database")
 )
 
+type Pagination struct {
+	Page int
+
+	Size int
+}
+
 // 商品信息
 type Good struct {
-	ID uint64 `gorm:"primaryKey"`
+	ID uint64 `gorm:"column:id;primaryKey"`
 
 	// UID 唯一ID
-	UID string `json:"uid,omitempty"`
+	UID string `json:"uid,omitempty" gorm:"column:uid"`
 
 	// URL 所在网址
-	URL string `json:"url,omitempty"`
+	URL string `json:"url,omitempty" gorm:"column:url"`
 
 	// Comments 评论数
-	Comments int `json:"comments,omitempty"`
+	Comments int `json:"comments,omitempty" gorm:"column:comments"`
 
 	// Express 快递信息
-	Express string `json:"express,omitempty"`
+	Express string `json:"express,omitempty" gorm:"column:express"`
 
 	// 入库时间
-	Timeout int64 `json:"timeout,omitempty"`
+	Timeout int64 `json:"timeout,omitempty" gorm:"column:timeout"`
 }
 
 type Store struct {
@@ -58,7 +65,16 @@ func NewStore(cfg *config.Store) (*Store, error) {
 		}
 	}
 
-	err := s.db.AutoMigrate(&Good{})
+	DB, err := s.db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrConnectDB, err)
+	}
+
+	DB.SetConnMaxLifetime(time.Second * 5)
+	DB.SetMaxIdleConns(50)
+	DB.SetMaxOpenConns(10)
+
+	err = s.db.Table("goods").AutoMigrate(&Good{})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDBWrite, err)
 	}
@@ -66,10 +82,31 @@ func NewStore(cfg *config.Store) (*Store, error) {
 	return s, nil
 }
 
-func (s *Store) GetGoods(page, size int) ([]*Good, error) {
+func (s *Store) GetGoods(pg *Pagination) ([]*Good, error) {
 	goods := make([]*Good, 0)
 
-	err := s.db.Limit(size).Offset((page - 1) * size).Find(&goods).Error
+	db := s.db.Table("goods").Order("timeout desc")
+	if pg != nil {
+		db = db.Limit(pg.Size).Offset((pg.Page - 1) * pg.Size)
+	}
+
+	err := db.Find(&goods).Error
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrDBRead, err)
+	}
+
+	return goods, nil
+}
+
+func (s *Store) GetGoodsByTimeout(start, end int64, pg *Pagination) ([]*Good, error) {
+	goods := make([]*Good, 0)
+
+	db := s.db.Table("goods").Order("timeout desc")
+	if pg != nil {
+		db = db.Limit(pg.Size).Offset((pg.Page - 1) * pg.Size)
+	}
+
+	err := db.Where("timeout > ? AND timeout < ?", start, end).Find(&goods).Error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDBRead, err)
 	}
@@ -78,8 +115,7 @@ func (s *Store) GetGoods(page, size int) ([]*Good, error) {
 }
 
 func (s *Store) AddGood(good *Good) error {
-
-	err := s.db.Create(good).Error
+	err := s.db.Table("goods").Create(good).Error
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrDBWrite, err)
 	}
@@ -90,3 +126,4 @@ func (s *Store) AddGood(good *Good) error {
 func (s *Store) Reset() {
 
 }
+

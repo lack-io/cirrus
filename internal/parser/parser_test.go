@@ -121,7 +121,7 @@ func TestParser_For(t *testing.T) {
 	}
 
 	err := cli.NewTask().
-		ExecOption(chromedp.ProxyServer("http://127.0.0.1:7890")).
+		ExecOption(chromedp.ProxyServer("http://127.0.0.1:10810/pac/?t=20201108185551786")).
 		Actions(actions...).
 		Do(context.TODO(), `https://www.cdiscount.com/informatique/gaming/manette-sans-fil-pour-nintendo-switch-bluetooth-m/f-107140308-auc6954248714547.html?idOffre=692865572`)
 	if err != nil {
