@@ -5,3 +5,5 @@
 *.gz
 
 *-dev.toml
+
+.DS_Store
