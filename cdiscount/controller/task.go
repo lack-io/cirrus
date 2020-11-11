@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/xingyys/cirrus/cdiscount"
+	"github.com/lack-io/cirrus/cdiscount"
 )
 
 type TaskState string

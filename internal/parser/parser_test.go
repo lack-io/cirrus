@@ -8,8 +8,8 @@ import (
 	"github.com/chromedp/chromedp"
 	"golang.org/x/net/html"
 
-	"github.com/xingyys/cirrus/internal/client"
-	"github.com/xingyys/cirrus/internal/net"
+	"github.com/lack-io/cirrus/internal/client"
+	"github.com/lack-io/cirrus/internal/net"
 )
 
 func newClient() *client.Client {

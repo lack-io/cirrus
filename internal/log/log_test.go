@@ -3,7 +3,7 @@ package log
 import (
 	"testing"
 
-	"github.com/xingyys/cirrus/config"
+	"github.com/lack-io/cirrus/config"
 )
 
 func TestPrint(t *testing.T) {

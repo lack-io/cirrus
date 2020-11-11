@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"github.com/xingyys/cirrus/config"
+	"github.com/lack-io/cirrus/config"
 )
 
 var logger *zap.Logger

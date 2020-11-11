@@ -8,11 +8,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/xingyys/cirrus/cdiscount/controller"
-	"github.com/xingyys/cirrus/config"
-	"github.com/xingyys/cirrus/internal/client"
-	"github.com/xingyys/cirrus/internal/log"
-	"github.com/xingyys/cirrus/internal/net"
+	"github.com/lack-io/cirrus/cdiscount/controller"
+	"github.com/lack-io/cirrus/config"
+	"github.com/lack-io/cirrus/internal/client"
+	"github.com/lack-io/cirrus/internal/log"
+	"github.com/lack-io/cirrus/internal/net"
+	"github.com/lack-io/cirrus/storage"
+	"github.com/lack-io/cirrus/storage/redis"
 )
 
 type Cdiscount struct {
@@ -28,14 +30,19 @@ type Cdiscount struct {
 	cli *client.Client
 
 	Serve *http.Server
+
+	storage storage.Storage
+
+	connects chan string
 }
 
 func NewCdiscount(cfg *config.Config) (*Cdiscount, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cds := &Cdiscount{
-		ctx:    ctx,
-		cancel: cancel,
-		cfg:    cfg,
+		ctx:      ctx,
+		cancel:   cancel,
+		cfg:      cfg,
+		connects: make(chan string, cfg.Client.Connections),
 	}
 
 	log.Info("init logger module")
@@ -49,6 +56,12 @@ func NewCdiscount(cfg *config.Config) (*Cdiscount, error) {
 		return nil, err
 	}
 	log.Info("init data store [ok]")
+
+	log.Info("init storage")
+	if err := cds.initStorage(); err != nil {
+		return nil, err
+	}
+	log.Info("init storage [ok]")
 
 	log.Info("init proxy pool")
 	if err := cds.initPool(); err != nil {
@@ -82,6 +95,20 @@ func (c *Cdiscount) initStore() error {
 		return err
 	}
 	c.Store = store
+	return nil
+}
+
+func (c *Cdiscount) initStorage() error {
+	var err error
+	switch c.cfg.Storage.Kind {
+	case config.Redis:
+		c.storage = redis.NewRedis(c.ctx, c.cfg.Storage.Redis)
+		err = c.storage.Init()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -127,7 +154,7 @@ func (c *Cdiscount) initServe() {
 	}
 }
 
-func (c *Cdiscount) Start(stop <-chan struct{})  {
+func (c *Cdiscount) Start(stop <-chan struct{}) {
 
 	go c.Serve.ListenAndServe()
 	log.Infof("start at %v", c.Serve.Addr)

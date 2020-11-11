@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/xingyys/cirrus/storage"
+	"github.com/lack-io/cirrus/config"
+	"github.com/lack-io/cirrus/storage"
 )
 
 var ob = &Redis{}
@@ -20,7 +21,8 @@ const (
 func TestNewRedis(t *testing.T) {
 	var err error
 	ctx := context.Background()
-	ob = NewRedis(ctx, addr, username, password, 10)
+	cfg := &config.StorageRedis{}
+	ob = NewRedis(ctx, cfg)
 	err = ob.Init()
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +61,8 @@ func TestRedis_Reset(t *testing.T) {
 
 func BenchmarkRedis_SetURL(b *testing.B) {
 	ctx := context.Background()
-	ob = NewRedis(ctx, addr, username, password, 10)
+	cfg := &config.StorageRedis{}
+	ob = NewRedis(ctx, cfg)
 	_ = ob.Init()
 	for i := 0; i < b.N; i++ {
 		u := storage.URL{Path: fmt.Sprintf("https://a%d", i)}
@@ -69,7 +72,8 @@ func BenchmarkRedis_SetURL(b *testing.B) {
 
 func BenchmarkRedis_GetURL(b *testing.B) {
 	ctx := context.Background()
-	ob = NewRedis(ctx, addr, username, password, 10)
+	cfg := &config.StorageRedis{}
+	ob = NewRedis(ctx, cfg)
 	_ = ob.Init()
 	for i := 0; i < b.N; i++ {
 		u, err := ob.GetURL()

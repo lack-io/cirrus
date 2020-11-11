@@ -9,7 +9,8 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/xingyys/cirrus/storage"
+	"github.com/lack-io/cirrus/config"
+	"github.com/lack-io/cirrus/storage"
 )
 
 const (
@@ -35,13 +36,13 @@ type Redis struct {
 	ready *atomic.Value
 }
 
-func NewRedis(ctx context.Context, addr, username, password string, size int) *Redis {
+func NewRedis(ctx context.Context, cfg *config.StorageRedis) *Redis {
 	cli := redis.NewClient(&redis.Options{
-		Addr:         addr,
-		Username:     username,
-		Password:     password,
+		Addr:         cfg.Addr,
+		Username:     cfg.Username,
+		Password:     cfg.Password,
 		DB:           0,
-		PoolSize:     size,
+		PoolSize:     cfg.Pools,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 10,
 	})
@@ -98,8 +99,8 @@ func (r *Redis) GetURL() (*storage.URL, error) {
 	}
 
 	url := &storage.URL{
-		Path: c.Val(),
-		Storage:  r,
+		Path:    c.Val(),
+		Storage: r,
 	}
 
 	return url, nil

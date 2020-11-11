@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/xingyys/cirrus/config"
+	"github.com/lack-io/cirrus/config"
 )
 
 var jg = &JG{}

@@ -9,10 +9,10 @@ import (
 
 	sll "github.com/emirpasic/gods/lists/singlylinkedlist"
 
-	"github.com/xingyys/cirrus/config"
-	"github.com/xingyys/cirrus/internal/log"
-	"github.com/xingyys/cirrus/proxy"
-	"github.com/xingyys/cirrus/proxy/jg"
+	"github.com/lack-io/cirrus/config"
+	"github.com/lack-io/cirrus/internal/log"
+	"github.com/lack-io/cirrus/proxy"
+	"github.com/lack-io/cirrus/proxy/jg"
 )
 
 // Pool 代理IP池，负责管理代理Pool

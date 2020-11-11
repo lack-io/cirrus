@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 )
 
@@ -51,6 +52,14 @@ type Balance struct {
 	Coin Coin `json:"cain,omitempty"`
 }
 
+type Scheme string
+
+const (
+	HTTP  Scheme = "http"
+	HTTPS Scheme = "https"
+	SOCK5 Scheme = "sock5"
+)
+
 // Country IP 所在的国家
 type Country string
 
@@ -74,6 +83,8 @@ const (
 
 // Endpoint 代理点
 type Endpoint struct {
+	Scheme Scheme `json:"scheme,omitempty"`
+
 	// Country 代理点所在的国家
 	Country Country `json:"country,omitempty"`
 
@@ -94,6 +105,10 @@ type Endpoint struct {
 
 	// 代理点使用次数
 	Num int64 `json:"num,omitempty"`
+}
+
+func (e *Endpoint) Addr() string {
+	return fmt.Sprintf("%s://%s:%d", e.Scheme, e.IP, e.Port)
 }
 
 func (e *Endpoint) DeepCopy() *Endpoint {

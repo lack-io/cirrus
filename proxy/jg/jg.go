@@ -10,9 +10,9 @@ import (
 
 	json "github.com/json-iterator/go"
 
-	"github.com/xingyys/cirrus/config"
-	"github.com/xingyys/cirrus/internal/net"
-	"github.com/xingyys/cirrus/proxy"
+	"github.com/lack-io/cirrus/config"
+	"github.com/lack-io/cirrus/internal/net"
+	"github.com/lack-io/cirrus/proxy"
 )
 
 // 免费代理套餐的ID
@@ -299,5 +299,17 @@ func (j *JG) getips(ctx context.Context, num int, pack string) ([]*proxy.Endpoin
 
 	out := []*proxy.Endpoint{}
 	err := j.Fetch(ctx, "http://d.jghttp.golangapi.com/getip", params, &out)
+	var scheme proxy.Scheme
+	switch params["port"] {
+	case "1":
+		scheme = proxy.HTTP
+	case "2":
+		scheme = proxy.SOCK5
+	case "11":
+		scheme = proxy.HTTPS
+	}
+	for _, item := range out {
+		item.Scheme = scheme
+	}
 	return out, err
 }

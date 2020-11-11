@@ -3,7 +3,7 @@ package controller
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/xingyys/cirrus/cdiscount"
+	"github.com/lack-io/cirrus/cdiscount"
 )
 
 func RegistryGoodController(cds *cdiscount.Cdiscount, handler *gin.Engine) {

@@ -8,7 +8,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/xingyys/cirrus/config"
+	"github.com/lack-io/cirrus/config"
 )
 
 var (
