@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/xingyys/cirrus/object"
+	"github.com/lack-io/cirrus/object"
 )
 
 var ob = &Redis{}

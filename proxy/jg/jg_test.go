@@ -8,13 +8,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/xingyys/cirrus/config"
+	"github.com/lack-io/cirrus/config"
 )
 
 var jg = &JG{}
 
 func TestGetJGProxy(t *testing.T) {
-	jg = GetJGProxy(context.Background(), &config.ProxyJG{
+	jg, _ = GetJGProxy(context.Background(), &config.ProxyJG{
 		Neek:          "29394",
 		APIAppKey:     "ec28da82d45f195e3d962c86dce693f4",
 		BalanceAppKey: "ec36c20228d8a97ff5dc56273dda535d",

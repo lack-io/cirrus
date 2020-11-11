@@ -5,14 +5,18 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	json "github.com/json-iterator/go"
 
-	"github.com/xingyys/cirrus/config"
-	"github.com/xingyys/cirrus/internal/net"
-	"github.com/xingyys/cirrus/proxy"
+	"github.com/lack-io/cirrus/config"
+	"github.com/lack-io/cirrus/internal/net"
+	"github.com/lack-io/cirrus/proxy"
 )
+
+// 免费代理套餐的ID
+const balanceAction = "31731"
 
 type Result struct {
 	Code interface{} `json:"code,omitempty"`
@@ -53,26 +57,28 @@ type JG struct {
 	Whites []White `json:"whites,omitempty"`
 }
 
-func GetJGProxy(ctx context.Context, cfg *config.ProxyJG) *JG {
+func GetJGProxy(ctx context.Context, cfg *config.ProxyJG) (*JG, error) {
 	jg := &JG{
 		ctx:  ctx,
 		Name: "jiguang",
 	}
 
-	if cfg != nil {
-		jg.Neek = cfg.Neek
-		jg.APIAppKey = cfg.APIAppKey
-		jg.BalanceAppKey = cfg.BalanceAppKey
+	if cfg == nil {
+		return nil, fmt.Errorf("%w: config is nil", proxy.ErrUnable)
 	}
 
-	return jg
+	jg.Neek = cfg.Neek
+	jg.APIAppKey = cfg.APIAppKey
+	jg.BalanceAppKey = cfg.BalanceAppKey
+
+	return jg, nil
 }
 
 // Init implement proxy.Proxy
 func (j *JG) Init() error {
 
 	if j.ctx == nil {
-		return fmt.Errorf("ctx is nil")
+		return fmt.Errorf("%w: ctx is nil", proxy.ErrUnable)
 	}
 
 	// 获取公共IP
@@ -81,7 +87,6 @@ func (j *JG) Init() error {
 		return err
 	}
 	j.LocalIP = pip.IP
-
 	type lists struct {
 		Lists []White `json:"lists,omitempty"`
 	}
@@ -94,7 +99,7 @@ func (j *JG) Init() error {
 	out := &lists{}
 	err = j.Fetch(j.ctx, "http://webapi.jghttp.golangapi.com/index/index/white_list", params, out)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %v", proxy.ErrUnable, err)
 	}
 
 	j.Whites = out.Lists
@@ -121,7 +126,8 @@ func (j *JG) Init() error {
 	}
 
 	// 领取免费的代理IP
-	_ = j.Fetch(j.ctx, "http://webapi.jghttp.golangapi.com/index/users/get_day_free_pack", params, nil)
+	data := map[string]string{"mid": j.Neek}
+	_, _ = j.post(j.ctx, "http://webapi.jghttp.golangapi.com/index/users/get_day_free_pack", nil, data, nil)
 
 	return nil
 }
@@ -136,16 +142,23 @@ func (j *JG) GetEndpoints(ctx context.Context, n int) ([]*proxy.Endpoint, error)
 	sub := pb - n
 	if sub >= 0 {
 		// 优先使用免费代理
-		endpoints, err = j.getips(j.ctx, n, "31731")
+		endpoints, err = j.getips(ctx, n, balanceAction)
+		if err != nil {
+			return j.getips(ctx, n, "")
+		}
 	} else {
-		endpoints, err = j.getips(j.ctx, pb, "31731")
-		es, err := j.getips(j.ctx, n-pb, "")
+		remaining := n - pb
+		endpoints, err = j.getips(ctx, pb, balanceAction)
+		if err != nil {
+			remaining = n
+		}
+		es, err := j.getips(j.ctx, remaining, "")
 		if err == nil {
 			endpoints = append(endpoints, es...)
 		}
 	}
 
-	return endpoints, err
+	return j.getips(ctx, n, "")
 }
 
 // GetBalance implement proxy.Proxy
@@ -177,7 +190,7 @@ func (j *JG) GetPackageBalance(ctx context.Context) (int, error) {
 	}
 
 	params := map[string]string{
-		"ac":     "31731",
+		//"ac":     balanceAction,
 		"neek":   j.Neek,
 		"appkey": j.BalanceAppKey,
 	}
@@ -207,12 +220,40 @@ func (j *JG) Fetch(ctx context.Context, api string, params map[string]string, to
 			return err
 		case "114":
 			return fmt.Errorf("%w: %v", proxy.ErrInsufficient, r.Msg)
+		case "121":
+			return fmt.Errorf("%w: %v", proxy.ErrPackageExpired, r.Msg)
 		default:
 			return fmt.Errorf("%w: %v", proxy.ErrResultException, r.Msg)
 		}
 	}
 
 	return nil
+}
+
+func (j *JG) post(ctx context.Context, url string, params, data map[string]string, to interface{}) (*Result, error) {
+	cli := net.Builder().
+		AddParams(params).
+		SetContentType(net.FORM).
+		SetHeader("Host", "webapi.jghttp.golangapi.com")
+
+	reader := strings.NewReader("")
+	if data != nil {
+		b, err := json.Marshal(data)
+		if err == nil {
+			_, _ = reader.Read(b)
+		}
+	}
+
+	out, err := cli.Post(ctx, url, reader)
+
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", proxy.ErrResultException, err)
+	}
+
+	r := &Result{Data: to}
+	_ = json.Unmarshal(out, r)
+
+	return r, nil
 }
 
 func (j *JG) fetch(ctx context.Context, url string, params map[string]string, to interface{}) (*Result, error) {
@@ -258,5 +299,17 @@ func (j *JG) getips(ctx context.Context, num int, pack string) ([]*proxy.Endpoin
 
 	out := []*proxy.Endpoint{}
 	err := j.Fetch(ctx, "http://d.jghttp.golangapi.com/getip", params, &out)
+	var scheme proxy.Scheme
+	switch params["port"] {
+	case "1":
+		scheme = proxy.HTTP
+	case "2":
+		scheme = proxy.SOCK5
+	case "11":
+		scheme = proxy.HTTPS
+	}
+	for _, item := range out {
+		item.Scheme = scheme
+	}
 	return out, err
 }

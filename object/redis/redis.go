@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/xingyys/cirrus/object"
+	"github.com/lack-io/cirrus/object"
 )
 
 const (

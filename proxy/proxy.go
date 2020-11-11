@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 )
 
@@ -13,6 +14,8 @@ var (
 	ErrNonEndpoint = errors.New("no endpoint available")
 	// ErrInsufficient 代理的余额不足
 	ErrInsufficient = errors.New("insufficient balance")
+	// ErrPackageExpired 套餐过期
+	ErrPackageExpired = errors.New("package expired")
 	// ErrOutException 请求结果异常
 	ErrResultException = errors.New("result exception")
 )
@@ -49,6 +52,14 @@ type Balance struct {
 	Coin Coin `json:"cain,omitempty"`
 }
 
+type Scheme string
+
+const (
+	HTTP  Scheme = "http"
+	HTTPS Scheme = "https"
+	SOCK5 Scheme = "sock5"
+)
+
 // Country IP 所在的国家
 type Country string
 
@@ -72,6 +83,8 @@ const (
 
 // Endpoint 代理点
 type Endpoint struct {
+	Scheme Scheme `json:"scheme,omitempty"`
+
 	// Country 代理点所在的国家
 	Country Country `json:"country,omitempty"`
 
@@ -94,25 +107,12 @@ type Endpoint struct {
 	Num int64 `json:"num,omitempty"`
 }
 
+func (e *Endpoint) Addr() string {
+	return fmt.Sprintf("%s://%s:%d", e.Scheme, e.IP, e.Port)
+}
+
 func (e *Endpoint) DeepCopy() *Endpoint {
 	out := &Endpoint{}
 	*out = *e
 	return out
 }
-
-//type Endpoints []*Endpoint
-//
-//func (p Endpoints) Len() int { return len(p) }
-//func (p Endpoints) Less(i, j int) bool {
-//	if p[i].Num != p[j].Num {
-//		return p[i].Num < p[j].Num
-//	}
-//	t1, _ := time.Parse("2006-01-02 15:04:05", p[i].ExpireTime)
-//	t2, _ := time.Parse("2006-01-02 15:04:05", p[j].ExpireTime)
-//	if !t1.Equal(t2) {
-//		return t1.Before(t2)
-//	}
-//
-//	return p[i].Port < p[j].Port
-//}
-//func (p Endpoints) Swap(i, j int) { p[i], p[j] = p[j], p[i] }

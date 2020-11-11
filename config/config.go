@@ -8,17 +8,17 @@ import (
 
 var (
 	once = &sync.Once{}
-	conf = &config{}
+	conf = &Config{}
 )
 
-type Storage string
+type Kind string
 
 const (
-	Redis Storage = "redis"
+	Redis Kind = "redis"
 )
 
 // Get 获取全局 config
-func Get() *config {
+func Get() *Config {
 	return conf
 }
 
@@ -32,14 +32,18 @@ func Init(path string) error {
 	return err
 }
 
-type config struct {
+type Config struct {
 	Web *Web `toml:"web"`
 
-	Object *Object `toml:"object"`
+	Storage *Storage `toml:"object"`
+
+	Store *Store `toml:"store"`
 
 	Client *Client `toml:"Client"`
 
 	Proxy *Proxy `toml:"proxy"`
+
+	Logger *Logger `toml:"logger"`
 }
 
 // Web 模块配置
@@ -51,17 +55,17 @@ type Web struct {
 	Port int `toml:"port"`
 }
 
-// Object 模块配置
-type Object struct {
+// Storage 模块配置
+type Storage struct {
 	// URL 存储方式
-	Storage Storage `toml:"storage"`
+	Kind Kind `toml:"storage"`
 
 	// Redis 配置，Storage=Redis 时有效
-	Redis *ObjectRedis `toml:"redis"`
+	Redis *StorageRedis `toml:"redis"`
 }
 
-// Object 模块 redis 配置
-type ObjectRedis struct {
+// Storage 模块 redis 配置
+type StorageRedis struct {
 	// Redis 地址
 	Addr string `toml:"addr"`
 
@@ -75,8 +79,27 @@ type ObjectRedis struct {
 	Pools int `toml:"pools"`
 }
 
+type StoreDB string
+
+const (
+	Sqlite StoreDB = "sqlite"
+)
+
+type Store struct {
+	DB StoreDB `toml:"db"`
+
+	Sqlite *DBSqlite `toml:"sqlite"`
+}
+
+type DBSqlite struct {
+	Name string `toml:"name"`
+}
+
 // Client 模块配置
 type Client struct {
+	// Headless 是否隐藏 chrome
+	Headless bool `toml:"headless"`
+
 	// 忽略图片加载
 	SkipImage bool `toml:"skip_image"`
 
@@ -92,8 +115,11 @@ const (
 
 // Proxy 模块配置
 type Proxy struct {
+	Enable bool `toml:"enable"`
 	// IP代理商
-	Agents []Agent `toml:"agents"`
+	Agent Agent `toml:"agents"`
+
+	Size int `toml:"size"`
 
 	// 极光代理配置，Agents 包含 JG 时有效
 	JG *ProxyJG `toml:"jg"`
@@ -109,4 +135,18 @@ type ProxyJG struct {
 
 	// JG 余额接口 appkey 信息
 	BalanceAppKey string `toml:"balance_appkey"`
+}
+
+type Logger struct {
+	Filename string `toml:"filename"`
+
+	MaxSize int `toml:"maxsize"`
+
+	MaxAge int `toml:"maxage"`
+
+	MaxBackups int `toml:"maxbackups"`
+
+	LocalTime bool `toml:"localtime"`
+
+	Compress bool `toml:"compress"`
 }
