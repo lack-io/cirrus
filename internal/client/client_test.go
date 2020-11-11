@@ -7,7 +7,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 
-	"github.com/xingyys/cirrus/internal/net"
+	"github.com/lack-io/cirrus/internal/net"
 )
 
 var cli *Client = &Client{}
