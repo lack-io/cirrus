@@ -19,15 +19,21 @@ var (
 	ErrDelURL = errors.New("del storage url")
 )
 
+// 订阅者
+type Subscriber interface {
+	Channel() <-chan URL
+	Close() error
+}
+
 type Storage interface {
 	// 初始化
 	Init() error
 
-	// 获取 URL
-	GetURL() (*URL, error)
+	// 订阅 URL
+	Subscribe() (Subscriber, error)
 
 	// 添加 URL
-	SetURL(url *URL) error
+	Push(URL) error
 
 	// Storage 重置，删除内部所有的 url
 	Reset()

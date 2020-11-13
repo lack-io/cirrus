@@ -8,13 +8,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/lack-io/cirrus/cdiscount/controller"
 	"github.com/lack-io/cirrus/config"
+	"github.com/lack-io/cirrus/controller"
 	"github.com/lack-io/cirrus/internal/client"
 	"github.com/lack-io/cirrus/internal/log"
 	"github.com/lack-io/cirrus/internal/net"
+	"github.com/lack-io/cirrus/internal/pool"
 	"github.com/lack-io/cirrus/storage"
 	"github.com/lack-io/cirrus/storage/redis"
+	"github.com/lack-io/cirrus/store"
 )
 
 type Cdiscount struct {
@@ -23,9 +25,9 @@ type Cdiscount struct {
 
 	cfg *config.Config
 
-	Store *Store
+	store *store.Store
 
-	Pool *Pool
+	ProxyPool *Pool
 
 	cli *client.Client
 
@@ -33,23 +35,26 @@ type Cdiscount struct {
 
 	storage storage.Storage
 
-	connects chan string
+	goPool *pool.Pool
+
+	startCh chan struct{}
+	pauseCh chan struct{}
 }
 
 func NewCdiscount(cfg *config.Config) (*Cdiscount, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cds := &Cdiscount{
-		ctx:      ctx,
-		cancel:   cancel,
-		cfg:      cfg,
-		connects: make(chan string, cfg.Client.Connections),
+		ctx:     ctx,
+		cancel:  cancel,
+		cfg:     cfg,
+		goPool:  pool.New(ctx, cfg.Client.Connections),
+		startCh: make(chan struct{}, 1),
+		pauseCh: make(chan struct{}, 1),
 	}
 
-	log.Info("init logger module")
 	if err := cds.initLogger(); err != nil {
 		return nil, err
 	}
-	log.Info("init logger module [ok]")
 
 	log.Info("init data store")
 	if err := cds.initStore(); err != nil {
@@ -90,11 +95,11 @@ func (c *Cdiscount) initLogger() error {
 }
 
 func (c *Cdiscount) initStore() error {
-	store, err := NewStore(c.cfg.Store)
+	s, err := store.NewStore(c.cfg.Store)
 	if err != nil {
 		return err
 	}
-	c.Store = store
+	c.store = s
 	return nil
 }
 
@@ -117,7 +122,7 @@ func (c *Cdiscount) initPool() error {
 	if err != nil {
 		return err
 	}
-	c.Pool = pool
+	c.ProxyPool = pool
 	return nil
 }
 
@@ -137,6 +142,7 @@ func (c *Cdiscount) initClient() error {
 	if err != nil {
 		return err
 	}
+	c.cli = cli
 	return nil
 }
 
@@ -144,7 +150,7 @@ func (c *Cdiscount) initServe() {
 	gin.SetMode(gin.ReleaseMode)
 	handler := gin.New()
 	controller.RegistryTaskController(c, handler)
-	controller.RegistryGoodController(c, handler)
+	controller.RegistryGoodController(c.store, handler)
 
 	c.Serve = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", c.cfg.Web.Binding, c.cfg.Web.Port),
@@ -158,6 +164,8 @@ func (c *Cdiscount) Start(stop <-chan struct{}) {
 
 	go c.Serve.ListenAndServe()
 	log.Infof("start at %v", c.Serve.Addr)
+	go c.daemon()
+	log.Infof("start daemon")
 
 	<-stop
 
@@ -167,7 +175,7 @@ func (c *Cdiscount) Start(stop <-chan struct{}) {
 }
 
 func (c *Cdiscount) Close() error {
-	c.Pool.Close()
-
+	c.cancel()
+	c.ProxyPool.Close()
 	return log.Sync()
 }

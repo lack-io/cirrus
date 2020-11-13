@@ -65,6 +65,8 @@ func NewPool(ctx context.Context, opts *config.Proxy) (*Pool, error) {
 			}
 			p.pp = jgProxy
 			log.Info("init [jiguang] proxy successfully")
+		default:
+			return nil, fmt.Errorf("未知的代理类型")
 		}
 	}
 
@@ -109,7 +111,7 @@ func (p *Pool) GetEndpoint(ctx context.Context) (*proxy.Endpoint, error) {
 		if ok {
 			endpoint = v.(*proxy.Endpoint)
 			t, _ := time.Parse("2006-01-02 15:03:04", endpoint.ExpireTime)
-			if t.Sub(time.Now()).Seconds() > 30 {
+			if t.Sub(time.Now()).Seconds() < 30 {
 				break
 			}
 			log.Infof("proxy endpoint [%s:%d] expired", endpoint.IP, endpoint.Port)

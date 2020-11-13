@@ -1,4 +1,4 @@
-package cdiscount
+package store
 
 import (
 	"errors"
@@ -41,7 +41,7 @@ type Good struct {
 	Express string `json:"express,omitempty" gorm:"column:express"`
 
 	// 入库时间
-	Timeout int64 `json:"timeout,omitempty" gorm:"column:timeout"`
+	Timestamp int64 `json:"timestamp,omitempty" gorm:"column:timestamp"`
 }
 
 type Store struct {

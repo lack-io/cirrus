@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -46,6 +47,9 @@ func (r *result) Accepted() *result {
 
 func (r *result) Fail(err error) *result {
 	r.err = err
+	if err != nil {
+		r.err = fmt.Errorf("未知错误")
+	}
 	r.ctx.JSON(http.StatusOK, gin.H{
 		"code":  2,
 		"msg":   "failure",
@@ -57,11 +61,14 @@ func (r *result) Fail(err error) *result {
 
 func (r *result) Bad(err error) *result {
 	r.err = err
+	if err != nil {
+		r.err = fmt.Errorf("未知错误")
+	}
 	r.ctx.JSON(http.StatusOK, gin.H{
 		"code":  3,
 		"msg":   "bad",
 		"data":  r.data,
-		"error": r.err,
+		"error": r.err.Error(),
 	})
 	return r
 }

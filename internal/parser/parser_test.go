@@ -121,9 +121,9 @@ func TestParser_For(t *testing.T) {
 	}
 
 	err := cli.NewTask().
-		ExecOption(chromedp.ProxyServer("http://127.0.0.1:10810/pac/?t=20201108185551786")).
+		ExecOption(chromedp.ProxyServer("http://127.0.0.1:7890")).
 		Actions(actions...).
-		Do(context.TODO(), `https://www.cdiscount.com/informatique/gaming/manette-sans-fil-pour-nintendo-switch-bluetooth-m/f-107140308-auc6954248714547.html?idOffre=692865572`)
+		Do(context.TODO(), `https://www.cdiscount.com/informatique/gaming/manette-sans-fil-pour-nintendo-switch-bluetooth-m/f-107140308-auc6954248714547.html`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestParser_For(t *testing.T) {
 	})
 
 	// 获取宝贝信息(特别是宝贝的品牌)
-	q.For("#fpContent #descContent table", "tbody tr td", func(s string, node *html.Node) {
-		t.Logf("text = %v, node = %v\n", s, node)
-	})
+	//q.For("#fpContent #descContent table", "tbody tr td", func(s string, node *html.Node) {
+	//	t.Logf("text = %v, node = %v\n", s, node)
+	//})
 }

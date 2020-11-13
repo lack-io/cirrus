@@ -3,11 +3,11 @@ package controller
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/lack-io/cirrus/cdiscount"
+	"github.com/lack-io/cirrus/store"
 )
 
-func RegistryGoodController(cds *cdiscount.Cdiscount, handler *gin.Engine) {
-	controller := goodController{cds: cds}
+func RegistryGoodController(store *store.Store, handler *gin.Engine) {
+	controller := goodController{store: store}
 	group := handler.Group("/api/v1/goods/")
 	{
 		group.GET("", controller.getGoods())
@@ -15,7 +15,7 @@ func RegistryGoodController(cds *cdiscount.Cdiscount, handler *gin.Engine) {
 }
 
 type goodController struct {
-	cds *cdiscount.Cdiscount
+	store *store.Store
 }
 
 func (c *goodController) getGoods() gin.HandlerFunc {
@@ -26,11 +26,11 @@ func (c *goodController) getGoods() gin.HandlerFunc {
 		end := DefaultQueryInt64(ctx, "end", 0)
 
 		var err error
-		var goods []*cdiscount.Good
+		var goods []*store.Good
 		if start > 0 || end > 0 {
-			goods, err = c.cds.Store.GetGoodsByTimeout(start, end, &cdiscount.Pagination{Page: int(page), Size: int(size)})
+			goods, err = c.store.GetGoodsByTimeout(start, end, &store.Pagination{Page: int(page), Size: int(size)})
 		} else {
-			goods, err = c.cds.Store.GetGoods(&cdiscount.Pagination{Page: int(page), Size: int(size)})
+			goods, err = c.store.GetGoods(&store.Pagination{Page: int(page), Size: int(size)})
 		}
 		if err != nil {
 			R().Ctx(ctx).Fail(err)

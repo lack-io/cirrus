@@ -35,7 +35,7 @@ func Init(path string) error {
 type Config struct {
 	Web *Web `toml:"web"`
 
-	Storage *Storage `toml:"object"`
+	Storage *Storage `toml:"storage"`
 
 	Store *Store `toml:"store"`
 
@@ -58,7 +58,7 @@ type Web struct {
 // Storage 模块配置
 type Storage struct {
 	// URL 存储方式
-	Kind Kind `toml:"storage"`
+	Kind Kind `toml:"kind"`
 
 	// Redis 配置，Storage=Redis 时有效
 	Redis *StorageRedis `toml:"redis"`
@@ -117,7 +117,7 @@ const (
 type Proxy struct {
 	Enable bool `toml:"enable"`
 	// IP代理商
-	Agent Agent `toml:"agents"`
+	Agent Agent `toml:"agent"`
 
 	Size int `toml:"size"`
 

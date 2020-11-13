@@ -3,9 +3,11 @@ package log
 import (
 	"os"
 
-	"github.com/lack-io/cirrus/config"
+	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/lack-io/cirrus/config"
 )
 
 var logger *zap.Logger

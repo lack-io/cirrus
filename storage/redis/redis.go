@@ -2,7 +2,6 @@ package redis
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"sync/atomic"
 	"time"
@@ -20,6 +19,44 @@ const (
 	pingInterval = time.Second * 5
 )
 
+type Subscribe struct {
+	ctx     context.Context
+	storage storage.Storage
+	sub     *redis.PubSub
+	ch      chan storage.URL
+}
+
+func newSubscribe(ctx context.Context, sub *redis.PubSub, sg storage.Storage) *Subscribe {
+	s := &Subscribe{
+		ctx:     ctx,
+		storage: sg,
+		sub:     sub,
+		ch:      make(chan storage.URL, 10),
+	}
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				_ = s.Close()
+				return
+			case m, ok := <-s.sub.Channel():
+				if ok {
+					s.ch <- storage.URL{Path: m.Payload, Storage: sg}
+				}
+			}
+		}
+	}()
+	return s
+}
+
+func (s *Subscribe) Channel() <-chan storage.URL {
+	return s.ch
+}
+
+func (s *Subscribe) Close() error {
+	return s.sub.Close()
+}
+
 type Redis struct {
 	// ctx 控制 Redis 的停止
 	ctx context.Context
@@ -35,6 +72,8 @@ type Redis struct {
 
 	ready *atomic.Value
 }
+
+const size = 10
 
 func NewRedis(ctx context.Context, cfg *config.StorageRedis) *Redis {
 	cli := redis.NewClient(&redis.Options{
@@ -88,62 +127,31 @@ func (r *Redis) ping() {
 	}
 }
 
-func (r *Redis) GetURL() (*storage.URL, error) {
+func (r *Redis) Subscribe() (storage.Subscriber, error) {
 	if !r.ready.Load().(bool) {
 		return nil, storage.ErrStorage
 	}
 
-	c := r.cli.SRandMember(r.ctx, r.raw)
-	if c.Err() != nil {
-		return nil, fmt.Errorf("%w: %v", storage.ErrGetURL, c.Err())
-	}
-
-	url := &storage.URL{
-		Path:    c.Val(),
-		Storage: r,
-	}
-
-	return url, nil
+	sub := r.cli.Subscribe(r.ctx, r.raw)
+	s := newSubscribe(r.ctx, sub, r)
+	return s, nil
 }
 
-func (r *Redis) SetURL(url *storage.URL) error {
+func (r *Redis) Push(url storage.URL) error {
 	if !r.ready.Load().(bool) {
 		return storage.ErrStorage
-	}
-
-	if r.cli.SIsMember(r.ctx, r.raw, url.Path).Val() {
-		return storage.ErrURLExists
 	}
 
 	if r.cli.HExists(r.ctx, r.cook, url.Path).Val() {
 		return storage.ErrOldURL
 	}
 
-	if err := r.cli.SAdd(r.ctx, r.raw, url.Path).Err(); err != nil {
-		return fmt.Errorf("%w: %v", storage.ErrSetURL, err)
-	}
-
-	return nil
-}
-
-func (r *Redis) DelURL(u *storage.URL) error {
-	if !r.ready.Load().(bool) {
-		return storage.ErrStorage
-	}
-
-	c := r.cli.SRem(r.ctx, r.raw, u.Path)
-	if c.Err() != nil {
-		return fmt.Errorf("%w: %v", storage.ErrDelURL, c.Err())
-	}
-
-	if r.cli.HSet(r.ctx, r.cook, c.Val(), 1).Err() != nil {
-		return fmt.Errorf("%w: %v", storage.ErrDelURL, c.Err())
-	}
+	r.cli.Publish(r.ctx, r.raw, url.Path)
 
 	return nil
 }
 
 func (r *Redis) Reset() {
-	r.cli.Del(r.ctx, r.raw)
+	// 清除访问过的 URL
 	r.cli.Del(r.ctx, r.cook)
 }
