@@ -29,27 +29,22 @@ const (
 )
 
 func (c *Cdiscount) daemon() {
-	sub, err := c.storage.Subscribe()
-	if err != nil {
-		log.Fatalf("订阅 storage 消息错误: %v", err)
-	}
-START:
-	select {
-	case <-c.startCh:
-	}
+	timer := time.NewTicker(time.Millisecond * 500)
 	for {
 		select {
 		case <-c.ctx.Done():
 			return
-		case u, ok := <-sub.Channel():
-			if ok {
-				log.Infof("<=== 获取请求路径 %v", u.Path)
-				c.goPool.NewTask(func() {
-					c.do(u.Path)
-				})
+		case <-timer.C:
+			if int(c.threads.Load()) < c.cfg.Client.Connections {
+				u, _ := c.storage.Get()
+				if u != nil {
+					log.Infof("<=== 获取请求路径 %v", u.Path)
+					c.threads.Add(1)
+					c.goPool.NewTask(func() {
+						c.do(u.Path)
+					})
+				}
 			}
-		case <-c.pauseCh:
-			goto START
 		}
 	}
 }
@@ -58,12 +53,10 @@ START:
 func (c *Cdiscount) StartDaemon(root string) {
 	c.storage.Reset()
 	_ = c.storage.Push(storage.URL{Path: root})
-	c.startCh <- struct{}{}
 }
 
 // PauseDaemon implemented daemon.Daemon interfaces
 func (c *Cdiscount) PauseDaemon() {
-	c.pauseCh <- struct{}{}
 }
 
 // do 请求 url
@@ -71,25 +64,33 @@ func (c *Cdiscount) do(url string) {
 	url, kind := urlParser(url)
 	if kind == Unknown {
 		log.Infof("目录路径 %s 无效", url)
-		c.storage.DelURL(&storage.URL{Path: url})
 		return
 	}
 	c.runTask(url, kind)
 }
 
 func (c *Cdiscount) runTask(url string, kind Kind) {
-	ctx, cancel := context.WithCancel(c.ctx)
+	ctx, cancel := context.WithTimeout(c.ctx, time.Minute * 2)
 	defer cancel()
 
 	var err error
 	defer func() {
+		c.threads.Sub(1)
 		if err != nil {
 			log.Errorf("请求 %s 失败: %v", url, err)
 			return
 		}
 		log.Infof("请求 %s 成功 !!!", url)
-		_ = c.storage.DelURL(&storage.URL{Path: url})
+		_ = c.storage.Persist(storage.URL{Path: url})
 	}()
+
+	var endpoint *proxy.Endpoint
+	endpoint, err = c.ProxyPool.GetEndpoint(ctx)
+	if err != nil {
+		_ = c.storage.Push(storage.URL{Path: url, Storage: c.storage})
+		return
+	}
+	log.Infof("获取代理节点 %v", endpoint.Addr())
 
 	log.Infof("请求路径 %v", url)
 	var doc string
@@ -97,24 +98,18 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 		chromedp.WaitReady(`body`, chromedp.ByQuery),
 		chromedp.OuterHTML(`document.querySelector('body')`, &doc, chromedp.ByJSPath),
 	}
-
-	var endpoint *proxy.Endpoint
-	endpoint, err = c.ProxyPool.GetEndpoint(ctx)
-	if err != nil {
-		return
-	}
-
-	log.Infof("获取代理节点 %v", endpoint.Addr())
 	err = c.cli.NewTask().
 		ExecOption(chromedp.ProxyServer(endpoint.Addr())).
 		Actions(actions...).
 		Do(ctx, url)
 	if err != nil {
+		_ = c.storage.Push(storage.URL{Path: url, Storage: c.storage})
 		return
 	}
 
 	log.Infof("开始解析 %v 页面...", url)
-	q, err := parser.NewParser(doc)
+	var q *parser.Parser
+	q, err = parser.NewParser(doc)
 	if err != nil {
 		return
 	}
@@ -124,8 +119,11 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 		for _, node := range q.Each("body", "a") {
 			for _, attr := range node.Attr {
 				if attr.Key == "href" {
-					log.Infof("===> 保存请求路径 %v", attr.Val)
-					_ = c.storage.SetURL(&storage.URL{Path: attr.Val, Storage: c.storage})
+					v, kind := urlParser(attr.Val)
+					if kind != Unknown {
+						log.Infof("===> 保存请求路径 %v", v)
+						_ = c.storage.Push(storage.URL{Path: v, Storage: c.storage})
+					}
 					continue
 				}
 			}
@@ -134,8 +132,11 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 		for _, node := range q.Each("body", "a") {
 			for _, attr := range node.Attr {
 				if attr.Key == "href" {
-					log.Infof("===> 保存请求路径 %v", attr.Val)
-					_ = c.storage.SetURL(&storage.URL{Path: attr.Val, Storage: c.storage})
+					v, kind := urlParser(attr.Val)
+					if kind != Unknown {
+						log.Infof("===> 保存请求路径 %v", v)
+						_ = c.storage.Push(storage.URL{Path: v, Storage: c.storage})
+					}
 					continue
 				}
 			}
@@ -211,15 +212,18 @@ func urlParser(url string) (string, Kind) {
 		return url, Unknown
 	}
 
-	index := strings.LastIndex(url, "/")
+	index := strings.LastIndex(url, ".html")
 	if index == -1 {
 		return url, Unknown
 	}
 
-	if idx := strings.LastIndex(url, "?"); idx != -1 {
-		url = url[:idx]
+	url = url[:index+5]
+
+	id := ""
+	if idx := strings.LastIndex(url, "/"); idx != -1 {
+		id = url[idx+1:]
 	}
-	if strings.HasPrefix(url, "f") {
+	if strings.HasPrefix(id, "f") {
 		return url, Link
 	}
 

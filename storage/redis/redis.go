@@ -19,44 +19,6 @@ const (
 	pingInterval = time.Second * 5
 )
 
-type Subscribe struct {
-	ctx     context.Context
-	storage storage.Storage
-	sub     *redis.PubSub
-	ch      chan storage.URL
-}
-
-func newSubscribe(ctx context.Context, sub *redis.PubSub, sg storage.Storage) *Subscribe {
-	s := &Subscribe{
-		ctx:     ctx,
-		storage: sg,
-		sub:     sub,
-		ch:      make(chan storage.URL, 10),
-	}
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				_ = s.Close()
-				return
-			case m, ok := <-s.sub.Channel():
-				if ok {
-					s.ch <- storage.URL{Path: m.Payload, Storage: sg}
-				}
-			}
-		}
-	}()
-	return s
-}
-
-func (s *Subscribe) Channel() <-chan storage.URL {
-	return s.ch
-}
-
-func (s *Subscribe) Close() error {
-	return s.sub.Close()
-}
-
 type Redis struct {
 	// ctx 控制 Redis 的停止
 	ctx context.Context
@@ -72,8 +34,6 @@ type Redis struct {
 
 	ready *atomic.Value
 }
-
-const size = 10
 
 func NewRedis(ctx context.Context, cfg *config.StorageRedis) *Redis {
 	cli := redis.NewClient(&redis.Options{
@@ -105,6 +65,7 @@ func (r *Redis) Init() error {
 		return c.Err()
 	}
 
+	r.cli.HSet(r.ctx, r.cook, "1")
 	r.ready.Store(true)
 	go r.ping()
 	return nil
@@ -127,14 +88,16 @@ func (r *Redis) ping() {
 	}
 }
 
-func (r *Redis) Subscribe() (storage.Subscriber, error) {
+func (r *Redis) Get() (*storage.URL, error) {
 	if !r.ready.Load().(bool) {
 		return nil, storage.ErrStorage
 	}
 
-	sub := r.cli.Subscribe(r.ctx, r.raw)
-	s := newSubscribe(r.ctx, sub, r)
-	return s, nil
+	result := r.cli.SPop(r.ctx, r.raw)
+	if result.Err() != nil {
+		return nil, result.Err()
+	}
+	return &storage.URL{Path: result.Val(), Storage: r}, nil
 }
 
 func (r *Redis) Push(url storage.URL) error {
@@ -146,12 +109,20 @@ func (r *Redis) Push(url storage.URL) error {
 		return storage.ErrOldURL
 	}
 
-	r.cli.Publish(r.ctx, r.raw, url.Path)
+	return r.cli.SAdd(r.ctx, r.raw, url.Path).Err()
+}
 
-	return nil
+func (r *Redis) Persist(url storage.URL) error {
+	if !r.ready.Load().(bool) {
+		return storage.ErrStorage
+	}
+
+
+	return r.cli.HSet(r.ctx, r.cook, url.Path, 1).Err()
 }
 
 func (r *Redis) Reset() {
 	// 清除访问过的 URL
 	r.cli.Del(r.ctx, r.cook)
+	r.cli.Del(r.ctx, r.raw)
 }

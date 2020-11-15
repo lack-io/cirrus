@@ -283,7 +283,7 @@ func (j *JG) getips(ctx context.Context, num int, pack string) ([]*proxy.Endpoin
 		"pro":     "0",
 		"city":    "0",
 		"yys":     "0",
-		"port":    "11",
+		"port":    "1",
 		"ts":      "1",
 		"ys":      "1",
 		"cs":      "1",

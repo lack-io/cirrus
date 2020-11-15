@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/atomic"
 
 	"github.com/lack-io/cirrus/config"
 	"github.com/lack-io/cirrus/controller"
@@ -37,6 +38,7 @@ type Cdiscount struct {
 
 	goPool *pool.Pool
 
+	threads *atomic.Int32
 	startCh chan struct{}
 	pauseCh chan struct{}
 }
@@ -48,6 +50,7 @@ func NewCdiscount(cfg *config.Config) (*Cdiscount, error) {
 		cancel:  cancel,
 		cfg:     cfg,
 		goPool:  pool.New(ctx, cfg.Client.Connections),
+		threads: atomic.NewInt32(0),
 		startCh: make(chan struct{}, 1),
 		pauseCh: make(chan struct{}, 1),
 	}
@@ -133,7 +136,7 @@ func (c *Cdiscount) initClient() error {
 		UserAgent:               net.UserAgent,
 		IgnoreCertificateErrors: true,
 	}
-	if c.cfg.Client.Headless {
+	if !c.cfg.Client.Headless {
 		opts.WindowsHigh, opts.WindowsWith = 400, 400
 	}
 

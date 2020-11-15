@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -34,9 +33,7 @@ func RegistryTaskController(d daemon.Daemon, handler *gin.Engine) {
 	controller := taskController{task: task, lock: &sync.RWMutex{}, d: d}
 	group := handler.Group("/api/v1/task/")
 	{
-		group.GET("", controller.getTask())
 		group.POST("action/start", controller.startTask())
-		group.POST("action/pause", controller.pauseTask())
 	}
 }
 
@@ -48,25 +45,10 @@ type taskController struct {
 	d daemon.Daemon
 }
 
-func (c *taskController) getTask() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		c.lock.RLock()
-		defer c.lock.RUnlock()
-
-		R().Ctx(ctx).OK(c.task)
-		return
-	}
-}
-
 func (c *taskController) startTask() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		c.lock.Lock()
 		defer c.lock.Unlock()
-
-		if c.task.State == Running {
-			R().Ctx(ctx).Bad(fmt.Errorf("task is running"))
-			return
-		}
 
 		type data struct {
 			Root string `json:"root,omitempty"`
@@ -79,28 +61,7 @@ func (c *taskController) startTask() gin.HandlerFunc {
 			return
 		}
 
-		c.task.StartTime = time.Now().Unix()
-		c.task.State = Running
 		c.d.StartDaemon(d.Root)
-
-		R().Ctx(ctx).Accepted()
-		return
-	}
-}
-
-func (c *taskController) pauseTask() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		c.lock.Lock()
-		defer c.lock.Unlock()
-
-		if c.task.State != Running {
-			R().Ctx(ctx).Bad(fmt.Errorf("task is not running"))
-			return
-		}
-
-		c.task.EndTime = time.Now().Unix()
-		c.task.State = Pending
-		c.d.PauseDaemon()
 
 		R().Ctx(ctx).Accepted()
 		return

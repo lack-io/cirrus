@@ -110,8 +110,8 @@ func (p *Pool) GetEndpoint(ctx context.Context) (*proxy.Endpoint, error) {
 		p.elock.RUnlock()
 		if ok {
 			endpoint = v.(*proxy.Endpoint)
-			t, _ := time.Parse("2006-01-02 15:03:04", endpoint.ExpireTime)
-			if t.Sub(time.Now()).Seconds() < 30 {
+			t, _ := time.Parse("2006-01-02 15:04:05", endpoint.ExpireTime)
+			if t.Sub(time.Now()).Seconds() > 10 {
 				break
 			}
 			log.Infof("proxy endpoint [%s:%d] expired", endpoint.IP, endpoint.Port)

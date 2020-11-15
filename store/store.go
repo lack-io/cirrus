@@ -85,7 +85,7 @@ func NewStore(cfg *config.Store) (*Store, error) {
 func (s *Store) GetGoods(pg *Pagination) ([]*Good, error) {
 	goods := make([]*Good, 0)
 
-	db := s.db.Table("goods").Order("timeout desc")
+	db := s.db.Table("goods").Order("timestamp desc")
 	if pg != nil {
 		db = db.Limit(pg.Size).Offset((pg.Page - 1) * pg.Size)
 	}
@@ -101,12 +101,12 @@ func (s *Store) GetGoods(pg *Pagination) ([]*Good, error) {
 func (s *Store) GetGoodsByTimeout(start, end int64, pg *Pagination) ([]*Good, error) {
 	goods := make([]*Good, 0)
 
-	db := s.db.Table("goods").Order("timeout desc")
+	db := s.db.Table("goods").Order("timestamp desc")
 	if pg != nil {
 		db = db.Limit(pg.Size).Offset((pg.Page - 1) * pg.Size)
 	}
 
-	err := db.Where("timeout > ? AND timeout < ?", start, end).Find(&goods).Error
+	err := db.Where("timestamp > ? AND timestamp < ?", start, end).Find(&goods).Error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDBRead, err)
 	}

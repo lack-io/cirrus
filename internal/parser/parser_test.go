@@ -2,6 +2,7 @@ package parser
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -27,6 +28,7 @@ func newClient() *client.Client {
 
 func TestQuery_Each(t *testing.T) {
 	cli := newClient()
+	ctx := context.TODO()
 
 	var html string
 	actions := []chromedp.Action{
@@ -35,9 +37,9 @@ func TestQuery_Each(t *testing.T) {
 	}
 
 	err := cli.NewTask().
-		ExecOption(chromedp.ProxyServer("http://127.0.0.1:7890")).
+		//ExecOption(chromedp.ProxyServer("http://127.0.0.1:7890")).
 		Actions(actions...).
-		Do(context.TODO(), `https://www.cdiscount.com/`)
+		Do(ctx, `https://www.cdiscount.com/`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,9 +123,9 @@ func TestParser_For(t *testing.T) {
 	}
 
 	err := cli.NewTask().
-		ExecOption(chromedp.ProxyServer("http://127.0.0.1:7890")).
+		//ExecOption(chromedp.ProxyServer("http://127.0.0.1:10810/pac/?t=20201108170517704")).
 		Actions(actions...).
-		Do(context.TODO(), `https://www.cdiscount.com/informatique/gaming/manette-sans-fil-pour-nintendo-switch-bluetooth-m/f-107140308-auc6954248714547.html`)
+		Do(context.TODO(), `https://www.cdiscount.com/jardin/entretenir-les-plantes/style-de-charge-usb-de-montre-bracelet-usb-anti-mo/f-1630203-auc2008487052282.html`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,15 +136,52 @@ func TestParser_For(t *testing.T) {
 	}
 
 	// 获取评论信息
-	t.Log(strings.TrimSpace(q.Text(".fpTMain .fpDesCol .fpCusto")))
+	commentTag := strings.TrimSpace(q.Text(".fpTMain .fpDesCol .fpCusto"))
+	commentSt := strings.SplitN(commentTag, " ", 2)
+	comments, _ := strconv.ParseInt(strings.TrimSpace(commentSt[0]), 10, 64)
+	if !(comments > 0) {
+		return
+	}
 
 	// 获取发货渠道信息
+	expressDocs := []string{}
 	q.For("#fpShipping .fpShippingMessage", "li .fpShippingText", func(s string, node *html.Node) {
-		t.Logf("text = %v, node = %v\n", s, node)
+		expressDocs = append(expressDocs, s)
 	})
+	if len(expressDocs) != 2 {
+		return
+	}
+	if !strings.Contains(expressDocs[1], "Livraison Gratuite") {
+		return
+	}
 
+	infoDocs := []string{}
 	// 获取宝贝信息(特别是宝贝的品牌)
-	//q.For("#fpContent #descContent table", "tbody tr td", func(s string, node *html.Node) {
-	//	t.Logf("text = %v, node = %v\n", s, node)
-	//})
+	q.For("#fpContent #descContent table", "tbody tr td", func(s string, node *html.Node) {
+		infoDocs = append(infoDocs, strings.TrimSpace(s))
+	})
+	var index int
+	var item string
+	for index, item = range infoDocs {
+		if item == "Marque" {
+			break
+		}
+	}
+
+	if index < len(infoDocs) && infoDocs[index+1] == "AUCUNE" {
+		t.Log("OK")
+	}
+}
+
+func TestUrl(t *testing.T) {
+	url := `https://www.cdiscount.com/jardin/entretenir-les-plantes/style-de-charge-usb-de-montre-bracelet-usb-anti-mo/f-1630203-auc2008487052282.html?idOffre=600160694#cm_rr=FP:10114852:SW:CAR&sw=33fb8bb4f9ca038ed912313145ebcc9782e70906a099c6e99823b73d4bef41f554e28794ac15ef8eb2dcd0cde149051732536e28c6059eb25ecd410de6da8d8be3fbf3db06069559057929a4ce7215fdc82a5accb2d55fcb3563d92962cfc83876f79126271c84c69db2da98d01ed497ba34c64757a620a624fec2ba884d7105`
+
+
+	index := strings.LastIndex(url, ".html")
+	if index == -1 {
+		t.Fail()
+	}
+
+	url = url[:index+5]
+	t.Log(url)
 }

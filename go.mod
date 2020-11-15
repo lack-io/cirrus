@@ -12,6 +12,7 @@ require (
 	github.com/json-iterator/go v1.1.10
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/stretchr/testify v1.6.1
+	go.uber.org/atomic v1.6.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect

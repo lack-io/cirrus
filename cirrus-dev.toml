@@ -12,7 +12,7 @@
 
     [storage.redis]
         # redis 地址
-        addr = "192.168.3.111:6379"
+        addr = "192.168.10.10:6379"
         # redis 用户名
         username = ""
         # redis 密码
@@ -33,7 +33,7 @@
 # 爬虫客户端配置
 [client]
     # 是否显示 chrome
-    headless = true
+    headless = false
     # 是否加载图片
     skip_image = true
     # 并发连接数
@@ -49,7 +49,7 @@
     agent = "jg"
 
     # 代理池中的代理个数
-    size = 10
+    size = 5
 
     [proxy.jg]
         # 用户ID
