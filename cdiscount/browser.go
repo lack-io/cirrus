@@ -2,6 +2,7 @@ package cdiscount
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -70,7 +71,7 @@ func (c *Cdiscount) do(url string) {
 }
 
 func (c *Cdiscount) runTask(url string, kind Kind) {
-	ctx, cancel := context.WithTimeout(c.ctx, time.Minute * 2)
+	ctx, cancel := context.WithTimeout(c.ctx, time.Minute*2)
 	defer cancel()
 
 	var err error
@@ -114,6 +115,13 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 		return
 	}
 
+	msg := q.Text("body #main-message h1")
+	if len(msg) != 0 {
+		err = errors.New("does not connect " + url)
+		log.Errorf("无法连接该页面: %v", url)
+		return
+	}
+
 	switch kind {
 	case Group:
 		for _, node := range q.Each("body", "a") {
@@ -140,6 +148,23 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 					continue
 				}
 			}
+		}
+
+		sout, _ := q.Html(".pSOutOfStock .fpSOTitleName")
+		if len(sout) != 0 {
+			good := store.Good{
+				URL:       url,
+				UID:       urlToID(url),
+				ScaleOut:  true,
+				Timestamp: time.Now().Unix(),
+			}
+			log.Infof("保存符合要求的宝贝: %v", good.UID)
+			err := c.store.AddGood(&good)
+			if err != nil {
+				log.Errorf("保存宝贝 %s 失败: %v", good.UID, err)
+			}
+			log.Infof("页面 %s 解析结束!", url)
+			return
 		}
 
 		// 获取评论信息

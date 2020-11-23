@@ -173,6 +173,62 @@ func TestParser_For(t *testing.T) {
 	}
 }
 
+func TestParser_ScaleOut(t *testing.T) {
+	cli := newClient()
+
+	var out string
+	actions := []chromedp.Action{
+		chromedp.WaitReady(`body`, chromedp.ByQuery),
+		chromedp.OuterHTML(`document.querySelector('body')`, &out, chromedp.ByJSPath),
+	}
+
+	err := cli.NewTask().
+		Actions(actions...).
+		Do(context.TODO(), `https://www.cdiscount.com/le-sport/randonnee-camping/csgo-couteau-feux-croises-balisong-d-entrainement/f-12107040404-auc6110861345050.html`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	q, err := NewParser(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := q.Html(".pSOutOfStock .fpSOTitleNam1e")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(s, "len = ", len(s))
+}
+
+func TestParser_InvalidURL(t *testing.T) {
+	cli := newClient()
+
+	var out string
+	actions := []chromedp.Action{
+		chromedp.WaitReady(`body`, chromedp.ByQuery),
+		chromedp.OuterHTML(`document.querySelector('body')`, &out, chromedp.ByJSPath),
+	}
+
+	err := cli.NewTask().
+		Actions(actions...).
+		Do(context.TODO(), `https://s.cdi1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	q, err := NewParser(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg := q.Text("body #main-message h1")
+	msg = strings.TrimSpace(msg)
+	t.Log(msg, "len = ", len(msg))
+}
+
+
 func TestUrl(t *testing.T) {
 	url := `https://www.cdiscount.com/jardin/entretenir-les-plantes/style-de-charge-usb-de-montre-bracelet-usb-anti-mo/f-1630203-auc2008487052282.html?idOffre=600160694#cm_rr=FP:10114852:SW:CAR&sw=33fb8bb4f9ca038ed912313145ebcc9782e70906a099c6e99823b73d4bef41f554e28794ac15ef8eb2dcd0cde149051732536e28c6059eb25ecd410de6da8d8be3fbf3db06069559057929a4ce7215fdc82a5accb2d55fcb3563d92962cfc83876f79126271c84c69db2da98d01ed497ba34c64757a620a624fec2ba884d7105`
 

@@ -34,6 +34,8 @@ type Good struct {
 	// URL 所在网址
 	URL string `json:"url,omitempty" gorm:"column:url"`
 
+	ScaleOut bool `json:"scaleOut,omitempty" gorm:"column:scaleout"`
+
 	// Comments 评论数
 	Comments int `json:"comments,omitempty" gorm:"column:comments"`
 
