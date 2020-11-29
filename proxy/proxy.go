@@ -30,6 +30,9 @@ type Proxy interface {
 
 	// 获取代理余额
 	GetBalance(ctx context.Context) (*Balance, error)
+
+	// 获取代理信息
+	GetJSON() Proxy
 }
 
 // 代理余额货币种类，一般根据代理所在的国家或地区决定

@@ -8,11 +8,11 @@ import (
 )
 
 type result struct {
-	ctx *gin.Context
+	ctx *gin.Context `json:"-"`
 
-	data interface{}
+	data interface{} `json:"data,omitempty"`
 
-	err error
+	err error `json:"err,omitempty"`
 }
 
 func R() *result {

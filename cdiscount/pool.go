@@ -50,24 +50,26 @@ func NewPool(ctx context.Context, opts *config.Proxy) (*Pool, error) {
 		proxyErrCh: make(chan error, 1),
 	}
 
-	if opts.Enable {
-		switch opts.Agent {
-		case config.JG:
-			if opts.JG == nil {
-				return nil, fmt.Errorf("config is nil")
-			}
-			jgProxy, err := jg.GetJGProxy(ctx, opts.JG)
-			if err != nil {
-				return nil, err
-			}
-			if err := jgProxy.Init(); err != nil {
-				return nil, err
-			}
-			p.pp = jgProxy
-			log.Info("init [jiguang] proxy successfully")
-		default:
-			return nil, fmt.Errorf("未知的代理类型")
+	if !opts.Enable {
+		return p, nil
+	}
+
+	switch opts.Agent {
+	case config.JG:
+		if opts.JG == nil {
+			return nil, fmt.Errorf("config is nil")
 		}
+		jgProxy, err := jg.GetJGProxy(ctx, opts.JG)
+		if err != nil {
+			return nil, err
+		}
+		if err := jgProxy.Init(); err != nil {
+			return nil, err
+		}
+		p.pp = jgProxy
+		log.Info("init [jiguang] proxy successfully")
+	default:
+		return nil, fmt.Errorf("未知的代理类型")
 	}
 
 	endpoints, err := p.pp.GetEndpoints(ctx, p.opts.Size)

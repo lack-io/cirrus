@@ -53,6 +53,8 @@ type Web struct {
 
 	// Web 服务端口
 	Port int `toml:"port"`
+
+	Static string `toml:"static"`
 }
 
 // Storage 模块配置

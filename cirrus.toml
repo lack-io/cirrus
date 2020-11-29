@@ -4,6 +4,8 @@
     binding = "127.0.0.1"
     # web 服务端口
     port = 4455
+    # static 静态文件路径
+    static = "D:\\project\\go\\src\\github.com\\lack-io\\cirrus\\static"
 
 # storage模块配置
 [storage]

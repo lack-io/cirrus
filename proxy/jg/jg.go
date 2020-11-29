@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	json "github.com/json-iterator/go"
@@ -19,13 +20,13 @@ import (
 const balanceAction = "31731"
 
 type Result struct {
-	Code interface{} `json:"code,omitempty"`
+	Code interface{} `json:"code"`
 
-	Success bool `json:"success,omitempty"`
+	Success bool `json:"success"`
 
-	Msg string `json:"msg,omitempty"`
+	Msg string `json:"msg"`
 
-	Data interface{} `json:"data,omitempty"`
+	Data interface{} `json:"data"`
 }
 
 // While JG 报名单信息
@@ -39,28 +40,31 @@ type White struct {
 
 type JG struct {
 	// ctx 控制 JG 的停止
-	ctx context.Context
+	ctx context.Context `json:"-"`
+
+	sync.RWMutex `json:"-"`
 
 	// 代理名称，默认为 "jiguang"
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// 本机公共IP
-	LocalIP string `json:"localIP,omitempty"`
+	LocalIP string `json:"localIP"`
 
-	Neek string `json:"neek,omitempty"`
+	Neek string `json:"neek"`
 
-	APIAppKey string `json:"api_appKey,omitempty"`
+	APIAppKey string `json:"api_appKey"`
 
-	BalanceAppKey string `json:"balance_appKey,omitempty"`
+	BalanceAppKey string `json:"balance_appKey"`
 
 	// 白名单信息
-	Whites []White `json:"whites,omitempty"`
+	Whites []White `json:"whites"`
 }
 
 func GetJGProxy(ctx context.Context, cfg *config.ProxyJG) (*JG, error) {
 	jg := &JG{
-		ctx:  ctx,
-		Name: "jiguang",
+		ctx:     ctx,
+		Name:    "极光代理",
+		RWMutex: sync.RWMutex{},
 	}
 
 	if cfg == nil {
@@ -76,6 +80,8 @@ func GetJGProxy(ctx context.Context, cfg *config.ProxyJG) (*JG, error) {
 
 // Init implement proxy.Proxy
 func (j *JG) Init() error {
+	j.Lock()
+	defer j.Unlock()
 
 	if j.ctx == nil {
 		return fmt.Errorf("%w: ctx is nil", proxy.ErrUnable)
@@ -312,4 +318,10 @@ func (j *JG) getips(ctx context.Context, num int, pack string) ([]*proxy.Endpoin
 		item.Scheme = scheme
 	}
 	return out, err
+}
+
+func (j *JG) GetJSON() proxy.Proxy {
+	j.RLock()
+	defer j.RUnlock()
+	return j
 }

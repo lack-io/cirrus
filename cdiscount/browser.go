@@ -58,6 +58,7 @@ func (c *Cdiscount) StartDaemon(root string) {
 
 // PauseDaemon implemented daemon.Daemon interfaces
 func (c *Cdiscount) PauseDaemon() {
+	c.storage.Reset()
 }
 
 // do 请求 url
@@ -122,6 +123,13 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 		return
 	}
 
+	msg = q.Text("body #main-frame-error")
+	if len(msg) != 0 {
+		err = errors.New("does not connect " + url)
+		log.Errorf("无法连接该页面: %v", url)
+		return
+	}
+
 	switch kind {
 	case Group:
 		for _, node := range q.Each("body", "a") {
@@ -150,11 +158,31 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 			}
 		}
 
+		var express string
+		infoDocs := []string{}
+		// 获取宝贝信息(特别是宝贝的品牌)
+		q.For("#fpContent #descContent table", "tbody tr td", func(s string, node *html.Node) {
+			infoDocs = append(infoDocs, strings.TrimSpace(s))
+		})
+		var index int
+		var item string
+		for index, item = range infoDocs {
+			if item == "Marque" {
+				break
+			}
+		}
+		if index < len(infoDocs)-1 {
+			express = infoDocs[index+1]
+		}
+
 		sout, _ := q.Html(".pSOutOfStock .fpSOTitleName")
 		if len(sout) != 0 {
 			good := store.Good{
 				URL:       url,
 				UID:       urlToID(url),
+				Comments:  0,
+				Brandless: express == "AUCUNE",
+				Express:   express,
 				ScaleOut:  true,
 				Timestamp: time.Now().Unix(),
 			}
@@ -187,32 +215,19 @@ func (c *Cdiscount) runTask(url string, kind Kind) {
 			return
 		}
 
-		infoDocs := []string{}
-		// 获取宝贝信息(特别是宝贝的品牌)
-		q.For("#fpContent #descContent table", "tbody tr td", func(s string, node *html.Node) {
-			infoDocs = append(infoDocs, strings.TrimSpace(s))
-		})
-		var index int
-		var item string
-		for index, item = range infoDocs {
-			if item == "Marque" {
-				break
-			}
+		// 保存符合的宝贝
+		good := store.Good{
+			URL:       url,
+			UID:       urlToID(url),
+			Comments:  int(comments),
+			Brandless: express == "AUCUNE",
+			Express:   express,
+			Timestamp: time.Now().Unix(),
 		}
-		if index < len(infoDocs) && infoDocs[index+1] == "AUCUNE" {
-			// 保存符合的宝贝
-			good := store.Good{
-				URL:       url,
-				UID:       urlToID(url),
-				Comments:  int(comments),
-				Express:   "AUCUNE",
-				Timestamp: time.Now().Unix(),
-			}
-			log.Infof("保存符合要求的宝贝: %v", good.UID)
-			err := c.store.AddGood(&good)
-			if err != nil {
-				log.Errorf("保存宝贝 %s 失败: %v", good.UID, err)
-			}
+		log.Infof("保存符合要求的宝贝: %v", good.UID)
+		err := c.store.AddGood(&good)
+		if err != nil {
+			log.Errorf("保存宝贝 %s 失败: %v", good.UID, err)
 		}
 	}
 	log.Infof("页面 %s 解析结束!", url)
@@ -233,6 +248,10 @@ func urlToID(url string) string {
 
 // urlParser 返回处理过的 url 和 url 的类型
 func urlParser(url string) (string, Kind) {
+	if url == prefix || url == prefix + "/" {
+		return url, Group
+	}
+
 	if !strings.HasPrefix(url, prefix) {
 		return url, Unknown
 	}

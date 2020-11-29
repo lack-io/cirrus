@@ -19,9 +19,11 @@ var (
 )
 
 type Pagination struct {
-	Page int
+	Page int `json:"page"`
 
-	Size int
+	Size int `json:"size"`
+
+	Total int64 `json:"total"`
 }
 
 // 商品信息
@@ -29,21 +31,23 @@ type Good struct {
 	ID uint64 `gorm:"column:id;primaryKey"`
 
 	// UID 唯一ID
-	UID string `json:"uid,omitempty" gorm:"column:uid"`
+	UID string `json:"uid" gorm:"column:uid"`
 
 	// URL 所在网址
-	URL string `json:"url,omitempty" gorm:"column:url"`
+	URL string `json:"url" gorm:"column:url"`
 
-	ScaleOut bool `json:"scaleOut,omitempty" gorm:"column:scaleout"`
+	ScaleOut bool `json:"scaleOut" gorm:"column:scaleout"`
+
+	Brandless bool `json:"brandless" gorm:"column:"brandless"`
 
 	// Comments 评论数
-	Comments int `json:"comments,omitempty" gorm:"column:comments"`
+	Comments int `json:"comments" gorm:"column:comments"`
 
 	// Express 快递信息
-	Express string `json:"express,omitempty" gorm:"column:express"`
+	Express string `json:"express" gorm:"column:express"`
 
 	// 入库时间
-	Timestamp int64 `json:"timestamp,omitempty" gorm:"column:timestamp"`
+	Timestamp int64 `json:"timestamp" gorm:"column:timestamp"`
 }
 
 type Store struct {
@@ -89,6 +93,7 @@ func (s *Store) GetGoods(pg *Pagination) ([]*Good, error) {
 
 	db := s.db.Table("goods").Order("timestamp desc")
 	if pg != nil {
+		_ = db.Count(&pg.Total)
 		db = db.Limit(pg.Size).Offset((pg.Page - 1) * pg.Size)
 	}
 
@@ -108,7 +113,13 @@ func (s *Store) GetGoodsByTimeout(start, end int64, pg *Pagination) ([]*Good, er
 		db = db.Limit(pg.Size).Offset((pg.Page - 1) * pg.Size)
 	}
 
-	err := db.Where("timestamp > ? AND timestamp < ?", start, end).Find(&goods).Error
+	db = db.Where("timestamp > ? AND timestamp < ?", start, end)
+	if pg != nil {
+		_ = db.Count(&pg.Total)
+		db = db.Limit(pg.Size).Offset((pg.Page - 1) * pg.Size)
+	}
+
+	err := db.Find(&goods).Error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDBRead, err)
 	}
@@ -123,6 +134,12 @@ func (s *Store) AddGood(good *Good) error {
 	}
 
 	return nil
+}
+
+func (s *Store) DelGroup(id int64) (*Good, error) {
+	good := &Good{}
+	err := s.db.Table("goods").Delete(good, "id = ?", id).Error
+	return good, err
 }
 
 func (s *Store) Reset() {

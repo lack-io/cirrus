@@ -1,9 +1,11 @@
 # 应用模块配置
 [web]
     # web 服务绑定地址
-    binding = "127.0.0.1"
+    binding = "192.168.124.18"
     # web 服务端口
     port = 4455
+    # static 静态文件路径
+    static = "D:\\project\\go\\src\\github.com\\lack-io\\cirrus\\static"
 
 # storage模块配置
 [storage]
@@ -33,11 +35,11 @@
 # 爬虫客户端配置
 [client]
     # 是否显示 chrome
-    headless = false
+    headless = true
     # 是否加载图片
     skip_image = true
     # 并发连接数
-    connections = 10
+    connections = 5
 
 # 代理模块配置
 [proxy]

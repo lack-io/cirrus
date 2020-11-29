@@ -28,12 +28,13 @@ type Task struct {
 	EndTime int64 `json:"endTime,omitempty"`
 }
 
-func RegistryTaskController(d daemon.Daemon, handler *gin.Engine) {
+func RegistryTaskController(d daemon.Daemon, handler *gin.RouterGroup) {
 	task := &Task{State: Free}
 	controller := taskController{task: task, lock: &sync.RWMutex{}, d: d}
-	group := handler.Group("/api/v1/task/")
+	group := handler.Group("/v1/task/")
 	{
 		group.POST("action/start", controller.startTask())
+		group.POST("action/clear", controller.clearTask())
 	}
 }
 
@@ -62,6 +63,18 @@ func (c *taskController) startTask() gin.HandlerFunc {
 		}
 
 		c.d.StartDaemon(d.Root)
+
+		R().Ctx(ctx).Accepted()
+		return
+	}
+}
+
+func (c *taskController) clearTask() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+
+		c.d.PauseDaemon()
 
 		R().Ctx(ctx).Accepted()
 		return

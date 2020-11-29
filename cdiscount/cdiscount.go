@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -150,10 +151,18 @@ func (c *Cdiscount) initClient() error {
 }
 
 func (c *Cdiscount) initServe() {
-	gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.DebugMode)
 	handler := gin.New()
-	controller.RegistryTaskController(c, handler)
-	controller.RegistryGoodController(c.store, handler)
+
+	handler.Use(controller.Logger())
+
+	handler.Static("/static", filepath.Join(c.cfg.Web.Static, "static"))
+	handler.StaticFile("/", filepath.Join(c.cfg.Web.Static, "index.html"))
+
+	api := handler.Group("/api", controller.CORS())
+	controller.RegistryTaskController(c, api)
+	controller.RegistryGoodController(c.store, api)
+	controller.RegistryProxyController(c.ProxyPool.pp, api)
 
 	c.Serve = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", c.cfg.Web.Binding, c.cfg.Web.Port),
