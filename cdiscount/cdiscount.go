@@ -151,7 +151,7 @@ func (c *Cdiscount) initClient() error {
 }
 
 func (c *Cdiscount) initServe() {
-	gin.SetMode(gin.DebugMode)
+	gin.SetMode(gin.ReleaseMode)
 	handler := gin.New()
 
 	handler.Use(controller.Logger())
@@ -159,7 +159,8 @@ func (c *Cdiscount) initServe() {
 	handler.Static("/static", filepath.Join(c.cfg.Web.Static, "static"))
 	handler.StaticFile("/", filepath.Join(c.cfg.Web.Static, "index.html"))
 
-	api := handler.Group("/api", controller.CORS())
+	api := handler.Group("/api")
+	api.Use(controller.CORS())
 	controller.RegistryTaskController(c, api)
 	controller.RegistryGoodController(c.store, api)
 	controller.RegistryProxyController(c.ProxyPool.pp, api)

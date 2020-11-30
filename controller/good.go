@@ -13,7 +13,7 @@ func RegistryGoodController(store *store.Store, handler *gin.RouterGroup) {
 	group := handler.Group("/v1/goods")
 	{
 		group.GET("", controller.getGoods())
-		group.DELETE("/:id", controller.delGroup())
+		group.DELETE("/:id", controller.delGood())
 	}
 }
 
@@ -49,7 +49,7 @@ func (c *goodController) getGoods() gin.HandlerFunc {
 	}
 }
 
-func (c *goodController) delGroup() gin.HandlerFunc {
+func (c *goodController) delGood() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ids := ctx.Param("id")
 		id, _ := strconv.ParseInt(ids, 10, 64)
